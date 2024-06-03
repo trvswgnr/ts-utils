@@ -1,12 +1,12 @@
 export const TYPE = Symbol("TYPE");
 export const VALUE = Symbol("VALUE");
 
-export type Nominal<T, Type> = {
+export type Nominal<T, Id> = {
     [VALUE]: T;
-    readonly [TYPE]: Type;
+    readonly [TYPE]: Id;
 };
 
-export function Nominal<T, N>(v: T, t: N): Nominal<T, N> {
+export function Nominal<T, Id>(v: T, t: Id): Nominal<T, Id> {
     return {
         [VALUE]: v,
         [TYPE]: t,
@@ -18,20 +18,11 @@ export module Nominal {
         return n[TYPE];
     }
 
-    export function value<N extends Nominal<any, any>>(
-        nominal: N,
-    ): N[typeof VALUE] {
-        return nominal[VALUE];
+    export function value<N extends Nominal<any, any>>(n: N): N[typeof VALUE] {
+        return n[VALUE];
     }
 
-    export function is_nominal<T, N extends PropertyKey>(
-        value: unknown,
-    ): value is Nominal<T, N> {
-        return (
-            typeof value === "object" &&
-            value !== null &&
-            TYPE in value &&
-            VALUE in value
-        );
+    export function is_nominal<T, Id>(v: unknown): v is Nominal<T, Id> {
+        return typeof v === "object" && v !== null && TYPE in v && VALUE in v;
     }
 }
