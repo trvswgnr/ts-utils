@@ -37,3 +37,25 @@ export type UnionToIntersection<U> = (
     : never;
 
 export const doNotExecute = (func: () => any) => {};
+
+export type Truthy<T> = T extends false | 0 | "" | null | undefined | 0n
+    ? never
+    : T;
+
+export type Widen<T> = T extends string
+    ? string
+    : T extends number
+    ? number
+    : T extends boolean
+    ? boolean
+    : T extends bigint
+    ? bigint
+    : T extends symbol
+    ? symbol
+    : T extends (infer U)[]
+    ? U[]
+    : T extends readonly (infer U)[]
+    ? readonly U[]
+    : T extends { [K in keyof T]: T[K] }
+    ? { [K in keyof T]: Widen<T[K]> }
+    : T;
