@@ -1,0 +1,9 @@
+{
+  "name": "@trav/utils",
+  "module": "index.ts",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.4.5"
+  },
+  "type": "module"
+}
