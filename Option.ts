@@ -1,30 +1,70 @@
-import { Nominal, Ordering } from "./shared";
+import { Ordering } from "./shared";
+import { type Equal } from "./type-helpers";
 
-export type Some<T> = Nominal<T, "Some">;
-export type None = null | undefined;
+const SOME = Symbol("SOME");
+const NONE = Symbol("NONE");
+const TYPE = Symbol("TYPE");
+const VALUE = Symbol("VALUE");
+
+/**
+ * `Some(v)` is a value that represents a non-empty option,
+ */
+export type Some<T> = { [TYPE]: typeof SOME; [VALUE]: T };
+
+/**
+ * `None` is a value that represents an empty option, i.e. either `null` or
+ * `undefined`.
+ */
+export type None = { [TYPE]: typeof NONE };
+
+/**
+ * The type for option values. Either `None` or a value of type `Some(v)`.
+ */
 export type Option<T> = Some<T> | None;
 
 export function Some<T>(v: T): Option<T> {
-    return Nominal(v);
+    return {
+        [TYPE]: SOME,
+        [VALUE]: v,
+    };
 }
 
 export function None<T>(): Option<T> {
-    return null;
+    return { [TYPE]: NONE };
 }
 
+type Nullish<T> = T extends null | undefined ? T : never;
+type Maybe<T> = T | Nullish<T>;
+
 export module Option {
+    /**
+     * Create an option from a value, returning `None` if the value is `null` or
+     * `undefined` and `Some(v)` otherwise.
+     */
+    export function from<T>(
+        v: T,
+    ): Equal<Nullish<T>, T> extends true
+        ? None
+        : Equal<NonNullable<T>, T> extends true
+        ? Some<T>
+        : Equal<Maybe<T>, T> extends true
+        ? Option<NonNullable<T>>
+        : never {
+        return (v === null || v === undefined ? None() : Some(v)) as any;
+    }
+
     /**
      * `none()` is `None`.
      */
     export function none<T>(): Option<T> {
-        return null;
+        return None();
     }
 
     /**
      * `some(v)` is `Some(v)`.
      */
     export function some<T>(v: T): Option<T> {
-        return Nominal(v);
+        return Some(v);
     }
 
     /**
@@ -35,7 +75,7 @@ export module Option {
         if (is_none(o)) {
             return defaultValue;
         }
-        return o;
+        return get(o);
     }
 
     /**
@@ -46,7 +86,7 @@ export module Option {
         if (is_none(o)) {
             throw new Error("tried to get value of none");
         }
-        return o as T;
+        return o[VALUE];
     }
 
     /**
@@ -69,7 +109,7 @@ export module Option {
         if (is_none(oo)) {
             return None();
         }
-        const o = get(oo) as Option<T>;
+        const o = get(oo);
         if (is_none(o)) {
             return None();
         }
@@ -111,26 +151,34 @@ export module Option {
      * `is_none(o)` is `true` if and only if `o` is `None`.
      */
     export function is_none<T>(value: Option<T>): value is None {
-        return value === null || value === undefined;
+        return value[TYPE] === NONE;
     }
 
     /**
      * `is_some(o)` is `true` if and only if `o` is `Some(v)`.
      */
     export function is_some<T>(value: Option<T>): value is Some<T> {
-        return value !== null && value !== undefined;
+        return value[TYPE] === SOME;
     }
 
     /**
      * `equal(eq, o0, o1)` is `true` if and only if `o0` and `o1` are both `None`
      * or if they are `Some(v0)` and `Some(v1)` and `eq(v0, v1)` is `true`.
      */
-    export function equal<T>(
+    export function equal<T, A extends Option<T>, B extends Option<T>>(
         eq: (a: T, b: T) => boolean,
-        o0: Option<T>,
-        o1: Option<T>,
-    ): boolean {
-        return is_none(o0) ? is_none(o1) : is_some(o1) && eq(get(o0), get(o1));
+        o0: A,
+        o1: B,
+    ): o0 is A {
+        const o0_is_none = is_none(o0);
+        const o1_is_none = is_none(o1);
+        if (o0_is_none && o1_is_none) {
+            return true;
+        }
+        if (o0_is_none || o1_is_none) {
+            return false;
+        }
+        return eq(get(o0), get(o1));
     }
 
     /**
@@ -142,16 +190,18 @@ export module Option {
         o0: Option<T>,
         o1: Option<T>,
     ): Ordering {
-        switch (true) {
-            case is_none(o0) && is_none(o1):
-                return Ordering.Equal;
-            case is_none(o0) && is_some(o1):
-                return Ordering.Less;
-            case is_some(o0) && is_none(o1):
-                return Ordering.Greater;
-            default:
-                return cmp(get(o0), get(o1));
+        const o0_is_none = is_none(o0);
+        const o1_is_none = is_none(o1);
+        if (o0_is_none && o1_is_none) {
+            return Ordering.Equal;
         }
+        if (o0_is_none) {
+            return Ordering.Less;
+        }
+        if (o1_is_none) {
+            return Ordering.Greater;
+        }
+        return cmp(get(o0), get(o1));
     }
 
     /**
@@ -159,5 +209,15 @@ export module Option {
      */
     export function to_array<T>(o: Option<T>): Array<T> {
         return is_none(o) ? [] : [get(o)];
+    }
+
+    /**
+     * `to_iter(o)` is an iterator that yields `v` if `o` is `Some(v)` and does
+     * not yield otherwise.
+     */
+    export function* to_iter<T>(o: Option<T>): Iterator<T> {
+        if (is_some(o)) {
+            yield get(o);
+        }
     }
 }
