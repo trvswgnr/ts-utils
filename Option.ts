@@ -1,40 +1,36 @@
-import { Ordering } from "./shared";
+import { NEVER, Ordering } from "./shared";
+import { Nominal } from "./Nominal";
 import { type Equal } from "./type-helpers";
 
 const SOME = Symbol("SOME");
 const NONE = Symbol("NONE");
-const TYPE = Symbol("TYPE");
-const VALUE = Symbol("VALUE");
 
 /**
  * `Some(v)` is a value that represents a non-empty option,
  */
-export type Some<T> = { [TYPE]: typeof SOME; [VALUE]: T };
+export type Some<T> = Nominal<T, typeof SOME>;
 
 /**
  * `None` is a value that represents an empty option, i.e. either `null` or
  * `undefined`.
  */
-export type None = { [TYPE]: typeof NONE };
+export type None = Nominal<never, typeof NONE>;
 
 /**
  * The type for option values. Either `None` or a value of type `Some(v)`.
  */
 export type Option<T> = Some<T> | None;
 
-export function Some<T>(v: T): Option<T> {
-    return {
-        [TYPE]: SOME,
-        [VALUE]: v,
-    };
+export function Some<T>(v: T): Some<T> {
+    return Nominal(v, SOME);
 }
 
 export function None<T>(): Option<T> {
-    return { [TYPE]: NONE };
+    return Nominal(NEVER, NONE);
 }
 
 type Nullish<T> = T extends null | undefined ? T : never;
-type Maybe<T> = T | Nullish<T>;
+type Maybe<T> = NonNullable<T> | Nullish<T>;
 
 export module Option {
     /**
@@ -86,7 +82,7 @@ export module Option {
         if (is_none(o)) {
             throw new Error("tried to get value of none");
         }
-        return o[VALUE];
+        return Nominal.value(o);
     }
 
     /**
@@ -151,14 +147,14 @@ export module Option {
      * `is_none(o)` is `true` if and only if `o` is `None`.
      */
     export function is_none<T>(value: Option<T>): value is None {
-        return value[TYPE] === NONE;
+        return Nominal.type(value) === NONE;
     }
 
     /**
      * `is_some(o)` is `true` if and only if `o` is `Some(v)`.
      */
     export function is_some<T>(value: Option<T>): value is Some<T> {
-        return value[TYPE] === SOME;
+        return Nominal.type(value) === SOME;
     }
 
     /**
