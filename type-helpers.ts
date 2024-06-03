@@ -36,8 +36,6 @@ export type UnionToIntersection<U> = (
     ? I
     : never;
 
-export const doNotExecute = (func: () => any) => {};
-
 export type Truthy<T> = T extends false | 0 | "" | null | undefined | 0n
     ? never
     : T;
